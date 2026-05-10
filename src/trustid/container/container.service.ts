@@ -1,0 +1,195 @@
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { AdvancedQueryDto } from '../common/dto/advanced-query.dto';
+import { CreateContainerDto } from '../common/dto/create-container.dto';
+import type {
+  CreateContainerResponse,
+  PublishContainerResponse,
+  RetrieveContainerResponse,
+} from '../common/interfaces/container.interface';
+import type { TrustIdConfig } from '../config/trustid.config';
+import { TrustIdHttpService } from '../http/trustid-http.service';
+
+/**
+ * ContainerService — manages TrustID's "Container" object.
+ *
+ * WHAT IS A CONTAINER?
+ * In TrustID's data model, a "Container" (sometimes called an "Application") is the
+ * top-level wrapper for a single identity verification case. Think of it like a
+ * folder for one applicant's submission — it holds their ID documents, selfie,
+ * and ultimately the verification results.
+ *
+ * CONTAINER LIFECYCLE:
+ *   Temp     → The container exists but hasn't been submitted yet
+ *              (you're still uploading images)
+ *   Pending  → Published and waiting for TrustID to process it
+ *   Archive  → Processing complete, results available to retrieve
+ *
+ * TYPICAL SEQUENCE (for agent-assisted flow):
+ *   1. createContainer()    — create the "folder"
+ *   2. DocumentService creates documents and uploads images inside it
+ *   3. FaceService uploads the selfie inside it
+ *   4. publishContainer()  — submit it to TrustID for processing (Temp → Pending)
+ *   5. Wait for webhook or poll until status is Archive
+ *   6. retrieveContainer() — fetch the final results
+ */
+@Injectable()
+export class ContainerService {
+  constructor(
+    private readonly http: TrustIdHttpService, // handles auth headers automatically
+    private readonly configService: ConfigService,
+  ) {}
+
+  /**
+   * Creates a new container (the top-level case in TrustID's system).
+   *
+   * @param dto.reference - Your internal applicant/case ID. Store this alongside
+   *                         the returned ContainerId so you can link webhook events
+   *                         back to the right user in your database.
+   * @param dto.callbackUrl - Optional webhook URL override. If omitted, TrustID uses
+   *                           the default URL configured in your account settings.
+   * @returns ContainerId — save this immediately, you'll need it for every subsequent call
+   */
+  async createContainer(
+    dto: CreateContainerDto = {},
+  ): Promise<CreateContainerResponse> {
+    const config = this.configService.get<TrustIdConfig>('trustid')!;
+
+    return this.http.post<CreateContainerResponse>(
+      '/dataAccess/createDocumentContainer/',
+      {
+        DeviceId: config.deviceId,
+        DocumentSource: 'Image', // tells TrustID we'll be uploading image files
+        ClientApplicationReference: dto.reference,
+        // Only include the callback config if we have a URL — otherwise omit the field entirely
+        PublishDocumentContainer: dto.callbackUrl
+          ? { CallbackUrl: dto.callbackUrl }
+          : undefined,
+      },
+    );
+  }
+
+  /**
+   * Publishes the container, telling TrustID "we're done uploading — please process this."
+   * After calling this:
+   *   - Container status moves from Temp → Pending
+   *   - TrustID starts scanning the documents
+   *   - You'll receive a ResultNotification webhook when processing is complete
+   *
+   * ⚠️ Make sure all images have been uploaded BEFORE calling this. You cannot
+   * add more documents or images after publishing.
+   */
+  async publishContainer(
+    containerId: string,
+  ): Promise<PublishContainerResponse> {
+    const config = this.configService.get<TrustIdConfig>('trustid')!;
+
+    return this.http.post<PublishContainerResponse>(
+      '/dataAccess/publishDocumentContainer/',
+      {
+        DeviceId: config.deviceId,
+        ContainerId: containerId,
+      },
+    );
+  }
+
+  /**
+   * Retrieves the full container with all its documents, images, and results.
+   *
+   * This is the main way to get verification results. The response includes:
+   *   - Container.Status — current lifecycle stage (Temp/Pending/Archive)
+   *   - Container.Documents[] — extracted fields from the ID documents
+   *   - Container.ApplicantPhoto.LivenessTestResults — face match + liveness score
+   *   - Container.KycAmlValidation.Validations[] — KYC/AML check results (if enabled)
+   *
+   * Typically called by ResultsService after a webhook notification, not directly.
+   */
+  async retrieveContainer(
+    containerId: string,
+  ): Promise<RetrieveContainerResponse> {
+    const config = this.configService.get<TrustIdConfig>('trustid')!;
+
+    return this.http.post<RetrieveContainerResponse>(
+      '/dataAccess/retrieveDocumentContainer/',
+      {
+        DeviceId: config.deviceId,
+        ContainerId: containerId,
+      },
+    );
+  }
+
+  /**
+   * Downloads a PDF summary report for a completed verification.
+   * The PDF is generated by TrustID and includes the document scan results,
+   * face match outcome, and any KYC/AML findings.
+   *
+   * Returns a Buffer (raw bytes) that you can stream to the client with
+   * Content-Type: application/pdf.
+   *
+   * ⚠️ Only available once the container is in Archive status.
+   */
+  async exportPdf(containerId: string): Promise<Buffer> {
+    const config = this.configService.get<TrustIdConfig>('trustid')!;
+
+    const data = await this.http.post<Buffer>('/dataAccess/exportPDF/', {
+      DeviceId: config.deviceId,
+      ContainerId: containerId,
+    });
+
+    // TrustID may return the PDF as a Buffer or as a binary string depending on
+    // the Axios response type — normalise to Buffer either way
+    return Buffer.isBuffer(data) ? data : Buffer.from(data, 'binary');
+  }
+
+  /**
+   * Searches active containers using flexible filters.
+   * Useful for building admin dashboards or finding a specific case.
+   *
+   * @param dto.reference - Filter by your internal reference ID
+   * @param dto.fromDate - ISO 8601 start date (e.g. '2026-01-01')
+   * @param dto.toDate - ISO 8601 end date
+   * @param dto.page / dto.pageSize - Pagination controls
+   */
+  async advancedQuery(dto: AdvancedQueryDto): Promise<unknown> {
+    const config = this.configService.get<TrustIdConfig>('trustid')!;
+
+    return this.http.post('/dataAccess/advancedQuery/', {
+      DeviceId: config.deviceId,
+      Reference: dto.reference,
+      FromDate: dto.fromDate,
+      ToDate: dto.toDate,
+      PageNumber: dto.page ?? 1,
+      PageSize: dto.pageSize ?? 25,
+    });
+  }
+
+  /**
+   * Searches the archive (completed cases) using the same filter options.
+   * Use this for reporting, compliance audits, or re-checking historical results.
+   */
+  async archiveContainerQuery(dto: AdvancedQueryDto): Promise<unknown> {
+    const config = this.configService.get<TrustIdConfig>('trustid')!;
+
+    return this.http.post('/dataAccess/archiveContainerQuery/', {
+      DeviceId: config.deviceId,
+      Reference: dto.reference,
+      FromDate: dto.fromDate,
+      ToDate: dto.toDate,
+      PageNumber: dto.page ?? 1,
+      PageSize: dto.pageSize ?? 25,
+    });
+  }
+
+  /**
+   * Returns a list of branches configured in your TrustID account.
+   * Branches are organisational units (e.g. different offices or departments).
+   * Useful if you need to assign containers to a specific branch.
+   */
+  async queryBranches(): Promise<unknown> {
+    const config = this.configService.get<TrustIdConfig>('trustid')!;
+
+    return this.http.post('/dataAccess/queryBranchesX/', {
+      DeviceId: config.deviceId,
+    });
+  }
+}
