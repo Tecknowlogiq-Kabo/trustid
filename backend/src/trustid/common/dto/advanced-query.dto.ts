@@ -8,10 +8,10 @@ import {
 } from 'class-validator';
 
 export class AdvancedQueryDto {
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Filter by applicant ID' })
   @IsOptional()
   @IsString()
-  reference?: string;
+  applicantId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

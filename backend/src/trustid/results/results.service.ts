@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { ContainerStatus } from '../common/enums/container-status.enum';
 import { KycOutcome } from '../common/enums/kyc-outcome.enum';
+import {
+  toVerificationStatus,
+} from '../common/enums/verification-status.enum';
 import type {
   DocumentField,
   KycValidation,
@@ -124,8 +127,8 @@ export class ResultsService {
     }
 
     return {
-      containerId: container.Id,
-      status: container.Status,
+      verificationId: container.Id,
+      status: toVerificationStatus(container.Status),
       overallOutcome,
       isLive,
       livenessConfidence,

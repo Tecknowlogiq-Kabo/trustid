@@ -1,6 +1,7 @@
 import { ContainerStatus } from '../enums/container-status.enum';
 import { DocumentType } from '../enums/document-type.enum';
 import { KycOutcome } from '../enums/kyc-outcome.enum';
+import { VerificationStatus } from '../enums/verification-status.enum';
 
 export interface TrustIdApiResponse {
   Success: boolean;
@@ -90,8 +91,8 @@ export interface RetrieveContainerResponse extends TrustIdApiResponse {
 }
 
 export interface VerificationSummary {
-  containerId: string;
-  status: ContainerStatus;
+  verificationId: string;
+  status: VerificationStatus;
   overallOutcome: KycOutcome | 'Pending';
   isLive: boolean;
   livenessConfidence: number;

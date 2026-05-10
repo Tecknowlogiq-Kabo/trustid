@@ -6,12 +6,12 @@ import { FaceService } from '../face/face.service';
 import { GuestLinkService } from '../guest-link/guest-link.service';
 import { ResultsService } from '../results/results.service';
 import { DocumentType } from '../common/enums/document-type.enum';
-import { ContainerStatus } from '../common/enums/container-status.enum';
+import { VerificationStatus } from '../common/enums/verification-status.enum';
 import { KycOutcome } from '../common/enums/kyc-outcome.enum';
 import { TrustIdException } from '../common/exceptions/trustid.exception';
 
-const mockSummary = (status = ContainerStatus.Archive) => ({
-  containerId: 'c-123',
+const mockSummary = (status = VerificationStatus.Complete) => ({
+  verificationId: 'c-123',
   status,
   overallOutcome: KycOutcome.Passed,
   isLive: true,
@@ -91,6 +91,7 @@ describe('OrchestrationService', () => {
 
   describe('submitVerification', () => {
     const dto = {
+      applicantId: 'user-1',
       documentType: DocumentType.Passport,
       frontImageBuffer: Buffer.from('front'),
       selfieBuffer: Buffer.from('selfie'),
@@ -165,19 +166,19 @@ describe('OrchestrationService', () => {
       expect(documentService.uploadBackImage).not.toHaveBeenCalled();
     });
 
-    it('returns containerId and publishedAt', async () => {
+    it('returns verificationId and publishedAt', async () => {
       const result = await service.submitVerification(dto);
-      expect(result.containerId).toBe('c-123');
+      expect(result.verificationId).toBe('c-123');
       expect(result.publishedAt).toBeInstanceOf(Date);
     });
   });
 
-  describe('createSelfServeSession', () => {
+  describe('createDelegatedVerification', () => {
     it('creates container and guest link, returns correct shape', async () => {
-      const result = await service.createSelfServeSession({
-        reference: 'ref-1',
+      const result = await service.createDelegatedVerification({
+        applicantId: 'ref-1',
       });
-      expect(result.containerId).toBe('c-123');
+      expect(result.verificationId).toBe('c-123');
       expect(result.guestLinkUrl).toBe('https://link.trustid.co.uk/abc');
       expect(result.expiresAt).toBe('2026-05-11T00:00:00Z');
     });
@@ -186,23 +187,23 @@ describe('OrchestrationService', () => {
   describe('pollForResult', () => {
     it('returns immediately when container is archived', async () => {
       const result = await service.pollForResult('c-123', { intervalMs: 10 });
-      expect(result.status).toBe(ContainerStatus.Archive);
+      expect(result.status).toBe(VerificationStatus.Complete);
     });
 
     it('polls until archived', async () => {
       resultsService.getVerificationResult
-        .mockResolvedValueOnce(mockSummary(ContainerStatus.Pending))
-        .mockResolvedValueOnce(mockSummary(ContainerStatus.Pending))
-        .mockResolvedValueOnce(mockSummary(ContainerStatus.Archive));
+        .mockResolvedValueOnce(mockSummary(VerificationStatus.Submitted))
+        .mockResolvedValueOnce(mockSummary(VerificationStatus.Submitted))
+        .mockResolvedValueOnce(mockSummary(VerificationStatus.Complete));
 
       const result = await service.pollForResult('c-123', { intervalMs: 10 });
-      expect(result.status).toBe(ContainerStatus.Archive);
+      expect(result.status).toBe(VerificationStatus.Complete);
       expect(resultsService.getVerificationResult).toHaveBeenCalledTimes(3);
     });
 
     it('throws TrustIdException on timeout', async () => {
       resultsService.getVerificationResult.mockResolvedValue(
-        mockSummary(ContainerStatus.Pending),
+        mockSummary(VerificationStatus.Submitted),
       );
 
       await expect(

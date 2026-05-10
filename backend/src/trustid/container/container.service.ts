@@ -43,15 +43,15 @@ export class ContainerService {
   /**
    * Creates a new container (the top-level case in TrustID's system).
    *
-   * @param dto.reference - Your internal applicant/case ID. Store this alongside
-   *                         the returned ContainerId so you can link webhook events
-   *                         back to the right user in your database.
+   * @param dto.applicantId - The calling service's internal user ID. Stored in TrustID
+   *                           as the reference so you can link webhook events back to
+   *                           the right user.
    * @param dto.callbackUrl - Optional webhook URL override. If omitted, TrustID uses
    *                           the default URL configured in your account settings.
    * @returns ContainerId — save this immediately, you'll need it for every subsequent call
    */
   async createContainer(
-    dto: CreateContainerDto = {},
+    dto: CreateContainerDto,
   ): Promise<CreateContainerResponse> {
     const config = this.configService.get<TrustIdConfig>('trustid')!;
 
@@ -60,7 +60,7 @@ export class ContainerService {
       {
         DeviceId: config.deviceId,
         DocumentSource: 'Image', // tells TrustID we'll be uploading image files
-        ClientApplicationReference: dto.reference,
+        ClientApplicationReference: dto.applicantId,
         // Only include the callback config if we have a URL — otherwise omit the field entirely
         PublishDocumentContainer: dto.callbackUrl
           ? { CallbackUrl: dto.callbackUrl }
@@ -145,7 +145,7 @@ export class ContainerService {
    * Searches active containers using flexible filters.
    * Useful for building admin dashboards or finding a specific case.
    *
-   * @param dto.reference - Filter by your internal reference ID
+   * @param dto.applicantId - Filter by the applicant's internal ID
    * @param dto.fromDate - ISO 8601 start date (e.g. '2026-01-01')
    * @param dto.toDate - ISO 8601 end date
    * @param dto.page / dto.pageSize - Pagination controls
@@ -155,7 +155,7 @@ export class ContainerService {
 
     return this.http.post('/dataAccess/advancedQuery/', {
       DeviceId: config.deviceId,
-      Reference: dto.reference,
+      Reference: dto.applicantId,
       FromDate: dto.fromDate,
       ToDate: dto.toDate,
       PageNumber: dto.page ?? 1,
@@ -172,7 +172,7 @@ export class ContainerService {
 
     return this.http.post('/dataAccess/archiveContainerQuery/', {
       DeviceId: config.deviceId,
-      Reference: dto.reference,
+      Reference: dto.applicantId,
       FromDate: dto.fromDate,
       ToDate: dto.toDate,
       PageNumber: dto.page ?? 1,

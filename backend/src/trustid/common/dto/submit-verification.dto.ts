@@ -1,14 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { DocumentType } from '../enums/document-type.enum';
 
 export class SubmitVerificationDto {
-  @ApiPropertyOptional({
-    description: 'Your internal applicant/user reference',
+  @ApiProperty({
+    description: "The calling service's internal ID for the applicant being verified",
   })
-  @IsOptional()
   @IsString()
-  reference?: string;
+  @IsNotEmpty()
+  applicantId: string;
 
   @ApiProperty({ enum: DocumentType })
   @IsEnum(DocumentType)
@@ -20,13 +20,13 @@ export class SubmitVerificationDto {
   callbackUrl?: string;
 }
 
-export class CreateSelfServeDto {
-  @ApiPropertyOptional({
-    description: 'Your internal applicant/user reference',
+export class CreateDelegatedVerificationDto {
+  @ApiProperty({
+    description: "The calling service's internal ID for the applicant being verified",
   })
-  @IsOptional()
   @IsString()
-  reference?: string;
+  @IsNotEmpty()
+  applicantId: string;
 
   @ApiPropertyOptional({
     description: 'URL to redirect applicant after completion',

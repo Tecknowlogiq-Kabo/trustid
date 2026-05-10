@@ -21,7 +21,7 @@ import {
 import { Response } from 'express';
 import { TrustIdExceptionFilter } from './common/exceptions/trustid-exception.filter';
 import {
-  CreateSelfServeDto,
+  CreateDelegatedVerificationDto,
   SubmitVerificationDto,
 } from './common/dto/submit-verification.dto';
 import { CreateGuestLinkDto } from './common/dto/create-guest-link.dto';
@@ -64,9 +64,9 @@ export class TrustIdController {
   @ApiBody({
     schema: {
       type: 'object',
-      required: ['documentType', 'frontImage', 'selfie'],
+      required: ['applicantId', 'documentType', 'frontImage', 'selfie'],
       properties: {
-        reference: { type: 'string' },
+        applicantId: { type: 'string' },
         documentType: {
           type: 'number',
           enum: Object.values(DocumentType).filter(
@@ -106,10 +106,10 @@ export class TrustIdController {
 
   @Post('session')
   @ApiOperation({
-    summary: 'Create a self-serve guest link session for applicant',
+    summary: 'Create a Delegated Verification session (guest link escape hatch)',
   })
-  async createSelfServeSession(@Body() dto: CreateSelfServeDto) {
-    return this.orchestration.createSelfServeSession(dto);
+  async createDelegatedVerification(@Body() dto: CreateDelegatedVerificationDto) {
+    return this.orchestration.createDelegatedVerification(dto);
   }
 
   @Post('guest-link')
@@ -118,24 +118,24 @@ export class TrustIdController {
     return this.guestLinks.createGuestLink(dto);
   }
 
-  @Get('results/:containerId')
+  @Get('results/:verificationId')
   @ApiOperation({ summary: 'Retrieve verification result summary' })
-  @ApiParam({ name: 'containerId', type: String })
-  async getResult(@Param('containerId') containerId: string) {
-    return this.results.getVerificationResult(containerId);
+  @ApiParam({ name: 'verificationId', type: String })
+  async getResult(@Param('verificationId') verificationId: string) {
+    return this.results.getVerificationResult(verificationId);
   }
 
-  @Get('results/:containerId/pdf')
+  @Get('results/:verificationId/pdf')
   @ApiOperation({ summary: 'Download PDF report for a verified container' })
-  @ApiParam({ name: 'containerId', type: String })
+  @ApiParam({ name: 'verificationId', type: String })
   async downloadPdf(
-    @Param('containerId') containerId: string,
+    @Param('verificationId') verificationId: string,
     @Res() res: Response,
   ) {
-    const pdf = await this.containers.exportPdf(containerId);
+    const pdf = await this.containers.exportPdf(verificationId);
     res.set({
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="trustid-report-${containerId}.pdf"`,
+      'Content-Disposition': `attachment; filename="trustid-report-${verificationId}.pdf"`,
       'Content-Length': pdf.length,
     });
     res.end(pdf);
