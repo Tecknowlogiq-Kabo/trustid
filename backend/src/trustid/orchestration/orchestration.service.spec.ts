@@ -91,8 +91,7 @@ describe('OrchestrationService', () => {
 
   describe('submitVerification', () => {
     const dto = {
-      applicantId: 'user-1',
-      documentType: DocumentType.Passport,
+      documentType: 'Passport',
       frontImageBuffer: Buffer.from('front'),
       selfieBuffer: Buffer.from('selfie'),
     };
@@ -149,6 +148,27 @@ describe('OrchestrationService', () => {
       ]);
     });
 
+    it('maps string documentType to TrustID enum', async () => {
+      await service.submitVerification(dto);
+      expect(documentService.createDocument).toHaveBeenCalledWith(
+        expect.objectContaining({
+          containerId: 'c-123',
+          documentType: DocumentType.Passport,
+        }),
+      );
+    });
+
+    it('generates applicantId internally', async () => {
+      await service.submitVerification(dto);
+      expect(containerService.createContainer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          applicantId: expect.stringMatching(
+            /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+          ),
+        }),
+      );
+    });
+
     it('uploads back image when provided', async () => {
       await service.submitVerification({
         ...dto,
@@ -175,12 +195,21 @@ describe('OrchestrationService', () => {
 
   describe('createDelegatedVerification', () => {
     it('creates container and guest link, returns correct shape', async () => {
-      const result = await service.createDelegatedVerification({
-        applicantId: 'ref-1',
-      });
+      const result = await service.createDelegatedVerification({});
       expect(result.verificationId).toBe('c-123');
       expect(result.guestLinkUrl).toBe('https://link.trustid.co.uk/abc');
       expect(result.expiresAt).toBe('2026-05-11T00:00:00Z');
+    });
+
+    it('generates applicantId internally', async () => {
+      await service.createDelegatedVerification({});
+      expect(containerService.createContainer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          applicantId: expect.stringMatching(
+            /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+          ),
+        }),
+      );
     });
   });
 

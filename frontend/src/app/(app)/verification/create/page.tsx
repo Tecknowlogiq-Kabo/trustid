@@ -2,14 +2,13 @@
 
 import { useRouter } from 'next/navigation'
 import { useSubmitVerificationMutation, rtkErrorMessage } from '@/lib/trustidApi'
-import { DocumentType } from '@/lib/types'
 
 const docTypes = [
-  { label: 'Passport', value: DocumentType.Passport },
-  { label: 'Driving Licence', value: DocumentType.DrivingLicence },
-  { label: 'National ID', value: DocumentType.NationalId },
-  { label: 'BRP', value: DocumentType.BRP },
-  { label: 'Visa', value: DocumentType.Visa },
+  { label: 'Passport', value: 'Passport' },
+  { label: 'Driving Licence', value: 'DrivingLicence' },
+  { label: 'National ID', value: 'NationalId' },
+  { label: 'BRP', value: 'BRP' },
+  { label: 'Visa', value: 'Visa' },
 ]
 
 export default function VerificationCreatePage() {
@@ -44,19 +43,6 @@ export default function VerificationCreatePage() {
             {errorMessage}
           </div>
         )}
-
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="applicantId" className="text-sm font-medium text-[#0F172A]">
-            Applicant ID <span className="text-red-500">*</span>
-          </label>
-          <input
-            id="applicantId"
-            name="applicantId"
-            required
-            placeholder="e.g. user-12345"
-            className="w-full h-10 px-3 rounded-md border border-[#CBD5E1] bg-[#F8FAFC] text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent"
-          />
-        </div>
 
         <div className="flex flex-col gap-1.5">
           <label htmlFor="documentType" className="text-sm font-medium text-[#0F172A]">

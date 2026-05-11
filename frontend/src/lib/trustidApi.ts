@@ -1,9 +1,9 @@
+import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 import type {
   DelegatedVerificationResult,
   SubmitVerificationResult,
   VerificationSummary,
 } from './types'
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000'
 
@@ -25,7 +25,7 @@ export const trustidApi = createApi({
 
     createDelegatedVerification: builder.mutation<
       DelegatedVerificationResult,
-      { applicantId: string; redirectUrl?: string; expiryMinutes?: number }
+      { redirectUrl?: string; expiryMinutes?: number }
     >({
       query: (body) => ({
         url: '/trustid/session',

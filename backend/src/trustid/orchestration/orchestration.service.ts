@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { VerificationStatus } from '../common/enums/verification-status.enum';
 import { TrustIdException } from '../common/exceptions/trustid.exception';
@@ -5,6 +6,7 @@ import {
   CreateDelegatedVerificationDto,
   SubmitVerificationDto,
 } from '../common/dto/submit-verification.dto';
+import { parseDocumentType } from '../common/enums/document-type.enum';
 import type {
   GuestLinkResponse,
   VerificationSummary,
@@ -91,8 +93,6 @@ export class OrchestrationService {
    * within an hour in production). Store the verificationId and listen for the
    * ResultNotification webhook to know when it's done.
    *
-   * @param dto.applicantId - The calling service's internal user ID. Required — used to
-   *                           link the webhook callback back to the right user.
    * @param dto.documentType - What kind of ID: Passport, DrivingLicence, NationalId, etc.
    * @param dto.frontImageBuffer - Raw bytes of the front of the ID document
    * @param dto.backImageBuffer - Raw bytes of the back (required for two-sided documents)
@@ -102,13 +102,14 @@ export class OrchestrationService {
   async submitVerification(
     dto: SubmitVerificationWithFilesDto,
   ): Promise<SubmitVerificationResult> {
+    const applicantId = randomUUID();
     this.logger.log(
-      `Starting verification submission (applicantId: ${dto.applicantId})`,
+      `Starting verification submission (applicantId: ${applicantId})`,
     );
 
     // Step 1: Create the TrustID container — the top-level case wrapper
     const containerResponse = await this.containerService.createContainer({
-      applicantId: dto.applicantId,
+      applicantId,
       callbackUrl: dto.callbackUrl,
     });
     const verificationId = containerResponse.ContainerId;
@@ -117,7 +118,7 @@ export class OrchestrationService {
     // Step 2: Register a document inside the container (tells TrustID what type of ID to expect)
     const documentResponse = await this.documentService.createDocument({
       containerId: verificationId,
-      documentType: dto.documentType,
+      documentType: parseDocumentType(dto.documentType),
     });
     const documentId = documentResponse.DocumentId;
     this.logger.log(`Document created: ${documentId}`);
@@ -158,7 +159,6 @@ export class OrchestrationService {
    * Creates a one-time URL for the applicant to upload their own documents through
    * TrustID's hosted page. Use this as an escape hatch when in-app capture is not possible.
    *
-   * @param dto.applicantId - The calling service's internal user ID. Required.
    * @param dto.redirectUrl - Where to send the applicant after they finish uploading
    * @param dto.expiryMinutes - How long the link stays valid (TrustID default applies if omitted)
    * @returns verificationId to store, the guestLinkUrl to send, and when the link expires
@@ -166,13 +166,14 @@ export class OrchestrationService {
   async createDelegatedVerification(
     dto: CreateDelegatedVerificationDto,
   ): Promise<DelegatedVerificationResult> {
+    const applicantId = randomUUID();
     this.logger.log(
-      `Creating delegated verification (applicantId: ${dto.applicantId})`,
+      `Creating delegated verification (applicantId: ${applicantId})`,
     );
 
     // Create the TrustID container — the guest link will be attached to it
     const containerResponse = await this.containerService.createContainer({
-      applicantId: dto.applicantId,
+      applicantId,
     });
     const verificationId = containerResponse.ContainerId;
 

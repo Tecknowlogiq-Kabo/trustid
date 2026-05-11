@@ -9,11 +9,9 @@ export default function DelegationCreatePage() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const form = e.currentTarget
-    const applicantId = (form.elements.namedItem('applicantId') as HTMLInputElement).value
 
     try {
-      const result = await createDelegatedVerification({ applicantId }).unwrap()
+      const result = await createDelegatedVerification({}).unwrap()
       router.push(
         `/delegation/${result.verificationId}/success?url=${encodeURIComponent(result.guestLinkUrl)}&expires=${encodeURIComponent(result.expiresAt)}`
       )
@@ -37,22 +35,6 @@ export default function DelegationCreatePage() {
             {errorMessage}
           </div>
         )}
-
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="applicantId" className="text-sm font-medium text-[#0F172A]">
-            Applicant ID <span className="text-red-500">*</span>
-          </label>
-          <input
-            id="applicantId"
-            name="applicantId"
-            required
-            placeholder="e.g. user-12345"
-            className="w-full h-10 px-3 rounded-md border border-[#CBD5E1] bg-[#F8FAFC] text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent"
-          />
-          <p className="text-xs text-[#64748B]">
-            The applicant will complete their verification via the generated link.
-          </p>
-        </div>
 
         <button
           type="submit"

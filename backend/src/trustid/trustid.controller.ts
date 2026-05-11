@@ -31,7 +31,6 @@ import { ResultsService } from './results/results.service';
 import { ContainerService } from './container/container.service';
 import { GuestLinkService } from './guest-link/guest-link.service';
 import { TrustIdAuthService } from './auth/auth.service';
-import { DocumentType } from './common/enums/document-type.enum';
 
 @ApiTags('trustid')
 @Controller('trustid')
@@ -64,14 +63,11 @@ export class TrustIdController {
   @ApiBody({
     schema: {
       type: 'object',
-      required: ['applicantId', 'documentType', 'frontImage', 'selfie'],
+      required: ['documentType', 'frontImage', 'selfie'],
       properties: {
-        applicantId: { type: 'string' },
         documentType: {
-          type: 'number',
-          enum: Object.values(DocumentType).filter(
-            (v) => typeof v === 'number',
-          ),
+          type: 'string',
+          enum: ['Passport', 'DrivingLicence', 'NationalId', 'BRP', 'Visa'],
         },
         callbackUrl: { type: 'string' },
         frontImage: { type: 'string', format: 'binary' },
