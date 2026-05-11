@@ -1,31 +1,28 @@
 'use client'
 
-import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createDelegatedVerification } from '@/lib/api'
+import { useCreateDelegatedVerificationMutation, rtkErrorMessage } from '@/lib/trustidApi'
 
 export default function DelegationCreatePage() {
   const router = useRouter()
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [createDelegatedVerification, { isLoading, error }] = useCreateDelegatedVerificationMutation()
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    setError(null)
-    setLoading(true)
-
     const form = e.currentTarget
     const applicantId = (form.elements.namedItem('applicantId') as HTMLInputElement).value
 
     try {
-      const result = await createDelegatedVerification({ applicantId })
-      router.push(`/delegation/${result.verificationId}/success?url=${encodeURIComponent(result.guestLinkUrl)}&expires=${encodeURIComponent(result.expiresAt)}`)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create guest link')
-    } finally {
-      setLoading(false)
+      const result = await createDelegatedVerification({ applicantId }).unwrap()
+      router.push(
+        `/delegation/${result.verificationId}/success?url=${encodeURIComponent(result.guestLinkUrl)}&expires=${encodeURIComponent(result.expiresAt)}`
+      )
+    } catch {
+      // RTK Query surfaces error in the `error` property
     }
   }
+
+  const errorMessage = rtkErrorMessage(error)
 
   return (
     <div className="p-12">
@@ -35,9 +32,9 @@ export default function DelegationCreatePage() {
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-lg border border-[#E2E8F0] p-8 max-w-xl flex flex-col gap-6">
-        {error && (
+        {errorMessage && (
           <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-md px-4 py-3">
-            {error}
+            {errorMessage}
           </div>
         )}
 
@@ -59,10 +56,10 @@ export default function DelegationCreatePage() {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={isLoading}
           className="w-fit px-5 py-2.5 bg-[#3B82F6] text-white text-sm font-semibold rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          {loading ? 'Generating…' : 'Generate Guest Link'}
+          {isLoading ? 'Generating…' : 'Generate Guest Link'}
         </button>
       </form>
     </div>

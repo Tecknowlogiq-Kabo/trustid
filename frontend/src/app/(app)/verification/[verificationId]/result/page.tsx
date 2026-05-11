@@ -1,14 +1,40 @@
+'use client'
+
+import { use } from 'react'
 import Link from 'next/link'
-import { getVerificationResult } from '@/lib/api'
+import { useGetVerificationResultQuery, rtkErrorMessage } from '@/lib/trustidApi'
 import { OutcomeBadge, StatusBadge } from '@/components/status-badge'
 
-export default async function VerificationResultPage({
+export default function VerificationResultPage({
   params,
 }: {
   params: Promise<{ verificationId: string }>
 }) {
-  const { verificationId } = await params
-  const summary = await getVerificationResult(verificationId)
+  const { verificationId } = use(params)
+  const { data: summary, isLoading, error } = useGetVerificationResultQuery(verificationId)
+
+  const errorMessage = rtkErrorMessage(error)
+
+  if (isLoading) {
+    return (
+      <div className="p-12">
+        <div className="flex items-center gap-3 text-[#64748B]">
+          <div className="w-4 h-4 rounded-full border-2 border-[#3B82F6] border-t-transparent animate-spin" />
+          <span className="text-sm">Loading result…</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (errorMessage || !summary) {
+    return (
+      <div className="p-12">
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-md px-4 py-3 max-w-md">
+          {errorMessage || 'Result not available'}
+        </div>
+      </div>
+    )
+  }
 
   const outcomeConfig = {
     Passed: { bg: 'bg-green-50', border: 'border-green-200', text: 'Identity Verified', sub: 'All checks passed successfully.' },

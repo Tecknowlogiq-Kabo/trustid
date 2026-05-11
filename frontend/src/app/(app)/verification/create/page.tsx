@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { submitVerification, DocumentType } from '@/lib/api'
+import { useSubmitVerificationMutation, rtkErrorMessage } from '@/lib/trustidApi'
+import { DocumentType } from '@/lib/types'
 
 const docTypes = [
   { label: 'Passport', value: DocumentType.Passport },
@@ -14,26 +14,22 @@ const docTypes = [
 
 export default function VerificationCreatePage() {
   const router = useRouter()
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [submitVerification, { isLoading, error }] = useSubmitVerificationMutation()
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    setError(null)
-    setLoading(true)
-
     const form = e.currentTarget
     const data = new FormData(form)
 
     try {
-      const result = await submitVerification(data)
+      const result = await submitVerification(data).unwrap()
       router.push(`/verification/${result.verificationId}/status`)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Submission failed')
-    } finally {
-      setLoading(false)
+    } catch {
+      // RTK Query surfaces error in the `error` property
     }
   }
+
+  const errorMessage = rtkErrorMessage(error)
 
   return (
     <div className="p-12">
@@ -43,9 +39,9 @@ export default function VerificationCreatePage() {
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-lg border border-[#E2E8F0] p-8 max-w-xl flex flex-col gap-6">
-        {error && (
+        {errorMessage && (
           <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-md px-4 py-3">
-            {error}
+            {errorMessage}
           </div>
         )}
 
@@ -107,10 +103,10 @@ export default function VerificationCreatePage() {
         <div className="flex gap-3 pt-2">
           <button
             type="submit"
-            disabled={loading}
+            disabled={isLoading}
             className="px-5 py-2.5 bg-[#3B82F6] text-white text-sm font-semibold rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {loading ? 'Submitting…' : 'Submit Verification'}
+            {isLoading ? 'Submitting…' : 'Submit Verification'}
           </button>
         </div>
       </form>

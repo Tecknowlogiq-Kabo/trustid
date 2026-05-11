@@ -1,4 +1,4 @@
-import type { VerificationStatus, VerificationOutcome } from '@/lib/api'
+import type { VerificationStatus, VerificationOutcome } from '@/lib/types'
 
 const statusStyles: Record<VerificationStatus, string> = {
   Draft: 'bg-slate-100 text-slate-600',
